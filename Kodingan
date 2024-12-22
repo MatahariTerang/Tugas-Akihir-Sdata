@@ -1,0 +1,219 @@
+#include <iostream>
+#include <queue>
+#include <stack>
+#include <string>
+#include <fstream>
+#include <limits>  // Untuk numeric_limits
+
+using namespace std;
+
+struct KTP {
+    string id;
+    string name;
+    string address;
+};
+
+struct Item {
+    string kode;
+    string nama;
+};
+
+struct Pembeli {
+    string idKTP;
+    string nama;
+};
+
+const int MAX_KTP = 100; // Ukuran maksimum array KTP
+
+// Fungsi untuk membaca data KTP dari file
+int loadKTPFromFile(KTP ktpData[], const char* filename) {
+    ifstream file(filename);
+    if (!file) {
+        cout << "File tidak dapat dibuka.\n";
+        return 0;
+    }
+
+    int count = 0;
+    while (count < MAX_KTP && file >> ktpData[count].id) {
+        file.ignore(numeric_limits<streamsize>::max(), '\n'); // Abaikan sisa newline
+        getline(file, ktpData[count].name);
+        getline(file, ktpData[count].address);
+        count++;
+    }
+    file.close();
+    cout << "Data KTP berhasil dimuat dari file.\n";
+    return count;
+}
+
+// Fungsi untuk menyimpan data KTP ke file
+void saveKTPToFile(const KTP ktpData[], int count, const char* filename) {
+    ofstream file(filename);
+    for (int i = 0; i < count; ++i) {
+        file << ktpData[i].id << endl;
+        file << ktpData[i].name << endl;
+        file << ktpData[i].address << endl;
+    }
+    file.close();
+}
+
+// Fungsi untuk menambahkan data KTP baru
+void inputKTP(KTP ktpData[], int& count) {
+    if (count >= MAX_KTP) {
+        cout << "Kapasitas data KTP penuh.\n";
+        return;
+    }
+
+    cout << "Masukkan ID KTP: ";
+    cin >> ktpData[count].id;
+    cout << "Masukkan Nama: ";
+    cin.ignore(); // Abaikan newline yang tersisa
+    getline(cin, ktpData[count].name);
+    cout << "Masukkan Alamat: ";
+    getline(cin, ktpData[count].address);
+
+    count++;
+    cout << "Data KTP berhasil ditambahkan.\n";
+}
+
+// Fungsi untuk login admin
+bool adminSignIn(const KTP ktpData[], int count) {
+    string inputID;
+    cout << "Masukkan ID KTP untuk login: ";
+    cin >> inputID;
+
+    for (int i = 0; i < count; ++i) {
+        if (inputID == ktpData[i].id) {
+            cout << "|=============================================|\n";
+            cout << "|Selamat Login berhasil. Selamat datang, Admin!|\n";
+            cout << "|=============================================|\n";
+            return true;
+        }
+    }
+    cout << "Login gagal. ID KTP tidak terdaftar.\n";
+    return false;
+}
+
+// Fungsi untuk menambahkan barang ke gudang
+void addItem(stack<Item>& gudang) {
+    Item item;
+    cout << "Masukkan kode barang: ";
+    cin >> item.kode;
+    cout << "Masukkan nama barang: ";
+    cin.ignore(); // Abaikan newline yang tersisa
+    getline(cin, item.nama);
+
+    gudang.push(item);
+    cout << "Barang berhasil ditambahkan ke gudang.\n";
+}
+
+// Fungsi untuk mencatat pembeli ke dalam antrian
+void addPembeli(queue<Pembeli>& antrian, const KTP ktpData[], int count) {
+    Pembeli pembeli;
+    cout << "Masukkan ID KTP pembeli: ";
+    cin >> pembeli.idKTP;
+
+    for (int i = 0; i < count; ++i) {
+        if (pembeli.idKTP == ktpData[i].id) {
+            pembeli.nama = ktpData[i].name;
+            antrian.push(pembeli);
+            cout << "Pembeli berhasil masuk ke antrian.\n";
+            return;
+        }
+    }
+    cout << "ID KTP tidak terdaftar. Pembeli tidak dapat masuk ke antrian.\n";
+}
+
+// Fungsi untuk menjual barang (FIFO untuk pembeli dan LIFO untuk barang)
+void sellItem(queue<Pembeli>& antrian, stack<Item>& gudang) {
+    if (antrian.empty()) {
+        cout << "Tidak ada pembeli dalam antrian.\n";
+        return;
+    }
+
+    if (gudang.empty()) {
+        cout << "Gudang kosong, tidak ada barang untuk dijual.\n";
+        return;
+    }
+
+    Pembeli pembeli = antrian.front();
+    antrian.pop();
+
+    Item item = gudang.top();
+    gudang.pop();
+
+    cout << "Pembeli " << pembeli.nama << " (ID KTP: " << pembeli.idKTP << ") membeli barang "
+         << item.nama << " (Kode: " << item.kode << ").\n";
+}
+
+// Fungsi untuk mencetak daftar barang di gudang
+void printItems(const stack<Item>& gudang) {
+    if (gudang.empty()) {
+        cout << "Gudang kosong.\n";
+        return;
+    }
+
+    stack<Item> temp = gudang;
+    cout << "Daftar barang di gudang:\n";
+    while (!temp.empty()) {
+        Item item = temp.top();
+        cout << "Kode: " << item.kode << ", Nama: " << item.nama << "\n";
+        temp.pop();
+    }
+}
+
+// Menu utama program
+int main() {
+    KTP ktpData[MAX_KTP];
+    int ktpCount = 0;
+    stack<Item> gudang;
+    queue<Pembeli> antrian;
+
+    const char* filename = "data_ktp.txt";
+    ktpCount = loadKTPFromFile(ktpData, filename);
+
+    // Admin harus login terlebih dahulu
+    if (!adminSignIn(ktpData, ktpCount)) {
+        return 0;
+    }
+
+    int choice;
+    do {
+        cout << "\n========== Menu ==========\n";
+        cout << "1. Tambahkan Data KTP\n";
+        cout << "2. Tambahkan Barang ke Gudang\n";
+        cout << "3. Catat Pembeli\n";
+        cout << "4. Jual Barang\n";
+        cout << "5. Cetak Daftar Barang\n";
+        cout << "6. Keluar\n";
+        cout << "===========================\n";
+        cout << "Pilih menu: ";
+        cin >> choice;
+
+        switch (choice) {
+        case 1:
+            inputKTP(ktpData, ktpCount);
+            saveKTPToFile(ktpData, ktpCount, filename);
+            break;
+        case 2:
+            addItem(gudang);
+            break;
+        case 3:
+            addPembeli(antrian, ktpData, ktpCount);
+            break;
+        case 4:
+            sellItem(antrian, gudang);
+            break;
+        case 5:
+            printItems(gudang);
+            break;
+        case 6:
+            cout << "Keluar dari program.\n";
+            break;
+        default:
+            cout << "Pilihan tidak valid! Silakan coba lagi.\n";
+            break;
+        }
+    } while (choice != 6);
+
+    return 0;
+}
